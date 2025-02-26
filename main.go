@@ -1,24 +1,23 @@
-package Go_QuadTree
+package main
 
 import (
+	"errors"
 	"fmt"
 	_ "fmt"
 	rl "github.com/gen2brain/raylib-go/raylib"
+	"math/rand"
 )
-
-type Vec2f = [2]float32
 
 type QuadTree struct {
 	boundary  rl.Rectangle
-	points    []Vec2f
+	points    []rl.Vector2
 	northWest *QuadTree
 	northEast *QuadTree
 	southWest *QuadTree
 	southEast *QuadTree
-	// allocator mem.Allocator
 }
 
-func makeQuadTree(aabb rl.Rectangle) *QuadTree {
+func MakeQuadTree(aabb rl.Rectangle) *QuadTree {
 	return &QuadTree{
 		boundary:  aabb,
 		points:    nil,
@@ -29,29 +28,34 @@ func makeQuadTree(aabb rl.Rectangle) *QuadTree {
 	}
 }
 
-func destroyQuadTree(tree *QuadTree) {
+func QuadTree_Destroy(tree *QuadTree) {
 	if tree.northWest == nil || tree.northEast == nil || tree.southWest == nil || tree.southEast == nil {
+
 		return
 	}
 
-	destroyQuadTree(tree.northWest)
-	destroyQuadTree(tree.northEast)
-	destroyQuadTree(tree.southWest)
-	destroyQuadTree(tree.southEast)
+	QuadTree_Destroy(tree.northWest)
+	tree.northWest = nil
+
+	QuadTree_Destroy(tree.northEast)
+	tree.northEast = nil
+
+	QuadTree_Destroy(tree.southWest)
+	tree.southWest = nil
+
+	QuadTree_Destroy(tree.southEast)
+	tree.southEast = nil
 }
 
-func insertQuadTree(tree *QuadTree, point Vec2f) bool {
-	if !rl.CheckCollisionPointRec(
-		rl.Vector2{X: point[0], Y: point[1]},
-		tree.boundary,
-	) {
+func QuadTree_Insert(tree *QuadTree, point rl.Vector2) bool {
+	if !rl.CheckCollisionPointRec(point, tree.boundary) {
 		return false
 	}
 
 	if len(tree.points) < 4 || tree.northWest == nil {
 
 		if tree.points == nil {
-			tree.points = make([]Vec2f, 0)
+			tree.points = make([]rl.Vector2, 0)
 		}
 
 		tree.points = append(tree.points, point)
@@ -61,44 +65,44 @@ func insertQuadTree(tree *QuadTree, point Vec2f) bool {
 
 	if tree.northEast == nil {
 		fmt.Println("Subdividing")
-		subdivideQuadTree(tree)
+		QuadTree_Subdivide(tree)
 	}
 
-	if insertQuadTree(tree.northWest, point) {
+	if QuadTree_Insert(tree.northWest, point) {
 		return true
 	}
-	if insertQuadTree(tree.northEast, point) {
+	if QuadTree_Insert(tree.northEast, point) {
 		return true
 	}
-	if insertQuadTree(tree.southWest, point) {
+	if QuadTree_Insert(tree.southWest, point) {
 		return true
 	}
-	if insertQuadTree(tree.southEast, point) {
+	if QuadTree_Insert(tree.southEast, point) {
 		return true
 	}
 
 	panic("Unable to subdivide any further, and unable to insert point into quad tree. Consider adjusting qtree parameters")
 }
 
-func subdivideQuadTree(tree *QuadTree) {
-	halfBounds := Vec2f{tree.boundary.Width / 2, tree.boundary.Height / 2}
+func QuadTree_Subdivide(tree *QuadTree) {
+	halfBounds := rl.Vector2{tree.boundary.Width / 2, tree.boundary.Height / 2}
 
-	tree.northWest = makeQuadTree(rl.Rectangle{X: tree.boundary.X, Y: tree.boundary.Y, Width: halfBounds[0], Height: halfBounds[1]})
-	tree.northEast = makeQuadTree(rl.Rectangle{X: tree.boundary.X + halfBounds[0], Y: tree.boundary.Y, Width: halfBounds[0], Height: halfBounds[1]})
-	tree.southWest = makeQuadTree(rl.Rectangle{X: tree.boundary.X, Y: tree.boundary.Y + halfBounds[1], Width: halfBounds[0], Height: halfBounds[1]})
-	tree.southEast = makeQuadTree(rl.Rectangle{X: tree.boundary.X + halfBounds[0], Y: tree.boundary.Y + halfBounds[1], Width: halfBounds[0], Height: halfBounds[1]})
+	tree.northWest = MakeQuadTree(rl.Rectangle{X: tree.boundary.X, Y: tree.boundary.Y, Width: halfBounds.X, Height: halfBounds.Y})
+	tree.northEast = MakeQuadTree(rl.Rectangle{X: tree.boundary.X + halfBounds.X, Y: tree.boundary.Y, Width: halfBounds.X, Height: halfBounds.Y})
+	tree.southWest = MakeQuadTree(rl.Rectangle{X: tree.boundary.X, Y: tree.boundary.Y + halfBounds.Y, Width: halfBounds.X, Height: halfBounds.Y})
+	tree.southEast = MakeQuadTree(rl.Rectangle{X: tree.boundary.X + halfBounds.X, Y: tree.boundary.Y + halfBounds.Y, Width: halfBounds.X, Height: halfBounds.Y})
 
 }
 
-func queryQuadTree(tree *QuadTree, rec rl.Rectangle) []Vec2f {
-	results := make([]Vec2f, 0)
+func QuadTree_Query(tree *QuadTree, rec rl.Rectangle) []rl.Vector2 {
+	results := make([]rl.Vector2, 0)
 
 	if !rl.CheckCollisionRecs(tree.boundary, rec) {
 		return results
 	}
 
 	for _, point := range tree.points {
-		if rl.CheckCollisionPointRec(rl.Vector2{X: point[0], Y: point[1]}, rec) {
+		if rl.CheckCollisionPointRec(rl.Vector2{X: point.X, Y: point.Y}, rec) {
 			_ = append(
 				results,
 				point,
@@ -110,7 +114,7 @@ func queryQuadTree(tree *QuadTree, rec rl.Rectangle) []Vec2f {
 		return results
 	}
 
-	if childResults := queryQuadTree(tree.northWest, rec); len(childResults) > 0 {
+	if childResults := QuadTree_Query(tree.northWest, rec); len(childResults) > 0 {
 		for _, point := range childResults {
 			_ = append(
 				results,
@@ -119,7 +123,7 @@ func queryQuadTree(tree *QuadTree, rec rl.Rectangle) []Vec2f {
 		}
 	}
 
-	if childResults := queryQuadTree(tree.northEast, rec); len(childResults) > 0 {
+	if childResults := QuadTree_Query(tree.northEast, rec); len(childResults) > 0 {
 		for _, point := range childResults {
 			_ = append(
 				results,
@@ -128,7 +132,7 @@ func queryQuadTree(tree *QuadTree, rec rl.Rectangle) []Vec2f {
 		}
 	}
 
-	if childResults := queryQuadTree(tree.southEast, rec); len(childResults) > 0 {
+	if childResults := QuadTree_Query(tree.southEast, rec); len(childResults) > 0 {
 		for _, point := range childResults {
 			_ = append(
 				results,
@@ -137,7 +141,7 @@ func queryQuadTree(tree *QuadTree, rec rl.Rectangle) []Vec2f {
 		}
 	}
 
-	if childResults := queryQuadTree(tree.southWest, rec); len(childResults) > 0 {
+	if childResults := QuadTree_Query(tree.southWest, rec); len(childResults) > 0 {
 		for _, point := range childResults {
 			_ = append(
 				results,
@@ -147,4 +151,119 @@ func queryQuadTree(tree *QuadTree, rec rl.Rectangle) []Vec2f {
 	}
 
 	return results
+}
+
+func QuadTree_Visualise(tree *QuadTree) []rl.Rectangle {
+	rectList := make([]rl.Rectangle, 0)
+
+	_ = append(rectList, tree.boundary)
+
+	if tree.northWest == nil {
+		return rectList
+	}
+
+	if childRect := QuadTree_Visualise(tree.northWest); len(childRect) > 0 {
+		for _, point := range childRect {
+			_ = append(rectList, point)
+		}
+	}
+
+	if childRect := QuadTree_Visualise(tree.northEast); len(childRect) > 0 {
+		for _, point := range childRect {
+			_ = append(rectList, point)
+		}
+	}
+
+	if childRect := QuadTree_Visualise(tree.southWest); len(childRect) > 0 {
+		for _, point := range childRect {
+			_ = append(rectList, point)
+		}
+	}
+
+	if childRect := QuadTree_Visualise(tree.southEast); len(childRect) > 0 {
+		for _, point := range childRect {
+			_ = append(rectList, point)
+		}
+	}
+
+	return rectList
+}
+
+func randomFloat32(min, max float32) float32 {
+	return min + rand.Float32()*(max-min)
+}
+
+func main() {
+	var WIDTH int32 = 640
+	var HEIGHT int32 = 480
+
+	RECT_SIZE := rl.Vector2{X: 10., Y: 10.}
+
+	rl.InitWindow(WIDTH, HEIGHT, "Quadtree Test")
+
+	rl.SetTargetFPS(60)
+
+	quadTree := MakeQuadTree(rl.Rectangle{X: 0, Y: 0, Width: float32(WIDTH), Height: float32(HEIGHT)})
+
+	rectPositions := [100]rl.Vector2{}
+
+	randColours := [100]rl.Color{}
+	for j := range randColours {
+		randColours[j] = randomColour()
+	}
+
+	for idx, pos := range rectPositions {
+		pos.X = randomFloat32(0, float32(WIDTH))
+		pos.Y = randomFloat32(0, float32(HEIGHT))
+		if QuadTree_Insert(quadTree, pos) == false {
+			fmt.Println("Failed to insert position into quadtree")
+			continue
+		}
+		fmt.Printf("Insert complete: %v\n", idx)
+	}
+
+	for !rl.WindowShouldClose() {
+		rl.BeginDrawing()
+		rl.ClearBackground(rl.Black)
+
+		visualisation := QuadTree_Visualise(quadTree)
+
+		for index, rect := range visualisation {
+			rl.DrawRectangleV(rl.Vector2{X: rect.X, Y: rect.Y}, rl.Vector2{X: rect.Width, Y: rect.Height}, randColours[index])
+		}
+
+		mousePos := rl.GetMousePosition()
+		rl.DrawRectangleV(mousePos, rl.Vector2{X: 20., Y: 20.}, rl.Red)
+
+		queryResults := QuadTree_Query(quadTree, rl.Rectangle{X: mousePos.X, Y: mousePos.Y, Width: RECT_SIZE.X, Height: RECT_SIZE.Y})
+
+		for _, position := range rectPositions {
+			_, err := linearSearch(queryResults[:], position)
+			if err == nil {
+				rl.DrawRectangleV(position, RECT_SIZE, rl.White)
+			} else {
+				rl.DrawRectangleV(position, RECT_SIZE, rl.Green)
+			}
+		}
+
+		rl.DrawFPS(10, 10)
+		rl.EndDrawing()
+	}
+}
+
+func linearSearch(slice []rl.Vector2, target rl.Vector2) (rl.Vector2, error) {
+	for _, value := range slice {
+		if value == target {
+			return value, nil
+		}
+	}
+	return rl.Vector2{}, errors.New("value not found")
+}
+
+func randomColour() rl.Color {
+	red := uint8(randomFloat32(0, 1) * 255)
+	green := uint8(randomFloat32(0, 1) * 255)
+	blue := uint8(randomFloat32(0, 1) * 255)
+
+	return rl.Color{R: uint8(red), G: uint8(green), B: uint8(blue), A: 255}
 }
