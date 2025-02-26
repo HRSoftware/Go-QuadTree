@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	rl "github.com/gen2brain/raylib-go/raylib"
+	"goQuadTree/utilities"
 )
 
 type QuadTree struct {
@@ -12,9 +13,11 @@ type QuadTree struct {
 	northEast *QuadTree
 	southWest *QuadTree
 	southEast *QuadTree
+	Colour    rl.Color
 }
 
 func MakeQuadTree(aabb rl.Rectangle) *QuadTree {
+	fmt.Println("Creating quadtree")
 	return &QuadTree{
 		boundary:  aabb,
 		points:    nil,
@@ -22,6 +25,7 @@ func MakeQuadTree(aabb rl.Rectangle) *QuadTree {
 		northEast: nil,
 		southWest: nil,
 		southEast: nil,
+		Colour:    utilities.RandomColour(),
 	}
 }
 
@@ -44,6 +48,7 @@ func (tree *QuadTree) Destroy() {
 	tree.southEast = nil
 }
 
+// Insert is a recursive function that adds a point. Subdivision will happen if needed
 func (tree *QuadTree) Insert(point rl.Vector2) bool {
 	if !rl.CheckCollisionPointRec(point, tree.boundary) {
 		return false
@@ -151,11 +156,16 @@ func (tree *QuadTree) Query(rec rl.Rectangle) []rl.Vector2 {
 	return results
 }
 
-// Visualise returns a list of rectangles to
-func (tree *QuadTree) Visualise() []rl.Rectangle {
-	rectList := make([]rl.Rectangle, 0)
+type rectCol struct {
+	Rect rl.Rectangle
+	Col  rl.Color
+}
 
-	rectList = append(rectList, tree.boundary)
+// Visualise returns a list of rectangles to
+func (tree *QuadTree) Visualise() []rectCol {
+	rectList := make([]rectCol, 0)
+
+	rectList = append(rectList, rectCol{tree.boundary, tree.Colour})
 
 	if tree.northWest == nil {
 		return rectList

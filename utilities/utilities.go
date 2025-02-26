@@ -2,6 +2,7 @@ package utilities
 
 import (
 	"errors"
+	"fmt"
 	rl "github.com/gen2brain/raylib-go/raylib"
 	"math/rand"
 )
@@ -25,5 +26,6 @@ func RandomColour() rl.Color {
 	green := uint8(randomFloat32(0, 1) * 255)
 	blue := uint8(randomFloat32(0, 1) * 255)
 
+	fmt.Printf("Random Colour:(%v,%v,%v)\n", red, green, blue)
 	return rl.Color{R: uint8(red), G: uint8(green), B: uint8(blue), A: 255}
 }

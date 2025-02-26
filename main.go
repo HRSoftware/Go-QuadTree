@@ -18,9 +18,14 @@ func main() {
 
 	rl.SetTargetFPS(60)
 
-	quadTree := types.MakeQuadTree(rl.Rectangle{X: 0, Y: 0, Width: float32(WIDTH), Height: float32(HEIGHT)})
+	rootQuadTree := types.MakeQuadTree(rl.Rectangle{
+		X:      0,
+		Y:      0,
+		Width:  float32(WIDTH),
+		Height: float32(HEIGHT),
+	})
 
-	rectPositions := map[rl.Vector2]rl.Color{}
+	var rectPositions []rl.Vector2
 
 	var randColours []rl.Color
 
@@ -35,26 +40,26 @@ func main() {
 
 		if rl.IsMouseButtonPressed(rl.MouseButtonLeft) {
 			newRec := rl.Rectangle{X: mousePos.X, Y: mousePos.Y, Width: float32(WIDTH), Height: float32(HEIGHT)}
-			rectPositions[rl.Vector2{X: newRec.X, Y: newRec.Y}] = utilities.RandomColour()
-			quadTree.Insert(rl.Vector2{X: newRec.X, Y: newRec.Y})
+			rectPositions = append(rectPositions, rl.Vector2{X: newRec.X, Y: newRec.Y})
+			rootQuadTree.Insert(rl.Vector2{X: newRec.X, Y: newRec.Y})
 		}
 
-		visualisation := quadTree.Visualise()
-
-		for _, val := range visualisation {
-			rl.DrawRectangleV(rl.Vector2{X: val.X, Y: val.Y}, rl.Vector2{X: val.Width, Y: val.Height}, rectPositions[rl.Vector2{X: val.X, Y: val.Y}])
+		// render the quadtree
+		for _, val := range rootQuadTree.Visualise() {
+			rl.DrawRectangleV(rl.Vector2{X: val.Rect.X, Y: val.Rect.Y}, rl.Vector2{X: val.Rect.Width, Y: val.Rect.Height}, val.Col)
 		}
 
+		// draw where the mouse is
 		rl.DrawRectangleV(mousePos, rl.Vector2{X: 20., Y: 20.}, rl.Red)
 
-		queryResults := quadTree.Query(rl.Rectangle{X: mousePos.X, Y: mousePos.Y, Width: RECT_SIZE.X, Height: RECT_SIZE.Y})
+		queryResults := rootQuadTree.Query(rl.Rectangle{X: mousePos.X, Y: mousePos.Y, Width: RECT_SIZE.X, Height: RECT_SIZE.Y})
 
-		for key, _ := range rectPositions {
-			_, err := utilities.LinearSearch(queryResults[:], key)
+		for _, rect := range rectPositions {
+			_, err := utilities.LinearSearch(queryResults[:], rect)
 			if err != nil {
-				rl.DrawRectangleV(key, RECT_SIZE, rl.White)
+				rl.DrawRectangleV(rect, RECT_SIZE, rl.White)
 			} else {
-				rl.DrawRectangleV(key, RECT_SIZE, rl.Green)
+				rl.DrawRectangleV(rect, RECT_SIZE, rl.Green)
 			}
 		}
 
