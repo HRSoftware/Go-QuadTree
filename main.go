@@ -52,7 +52,7 @@ func QuadTree_Insert(tree *QuadTree, point rl.Vector2) bool {
 		return false
 	}
 
-	if len(tree.points) < 4 || tree.northWest == nil {
+	if len(tree.points) < 4 && tree.northWest == nil {
 
 		if tree.points == nil {
 			tree.points = make([]rl.Vector2, 0)
@@ -94,6 +94,7 @@ func QuadTree_Subdivide(tree *QuadTree) {
 
 }
 
+// QuadTree_Query returns all rectangles in a given quadtree
 func QuadTree_Query(tree *QuadTree, rec rl.Rectangle) []rl.Vector2 {
 	results := make([]rl.Vector2, 0)
 
@@ -103,7 +104,7 @@ func QuadTree_Query(tree *QuadTree, rec rl.Rectangle) []rl.Vector2 {
 
 	for _, point := range tree.points {
 		if rl.CheckCollisionPointRec(rl.Vector2{X: point.X, Y: point.Y}, rec) {
-			_ = append(
+			results = append(
 				results,
 				point,
 			)
@@ -116,7 +117,7 @@ func QuadTree_Query(tree *QuadTree, rec rl.Rectangle) []rl.Vector2 {
 
 	if childResults := QuadTree_Query(tree.northWest, rec); len(childResults) > 0 {
 		for _, point := range childResults {
-			_ = append(
+			results = append(
 				results,
 				point,
 			)
@@ -125,7 +126,7 @@ func QuadTree_Query(tree *QuadTree, rec rl.Rectangle) []rl.Vector2 {
 
 	if childResults := QuadTree_Query(tree.northEast, rec); len(childResults) > 0 {
 		for _, point := range childResults {
-			_ = append(
+			results = append(
 				results,
 				point,
 			)
@@ -134,7 +135,7 @@ func QuadTree_Query(tree *QuadTree, rec rl.Rectangle) []rl.Vector2 {
 
 	if childResults := QuadTree_Query(tree.southEast, rec); len(childResults) > 0 {
 		for _, point := range childResults {
-			_ = append(
+			results = append(
 				results,
 				point,
 			)
@@ -143,7 +144,7 @@ func QuadTree_Query(tree *QuadTree, rec rl.Rectangle) []rl.Vector2 {
 
 	if childResults := QuadTree_Query(tree.southWest, rec); len(childResults) > 0 {
 		for _, point := range childResults {
-			_ = append(
+			results = append(
 				results,
 				point,
 			)
@@ -153,10 +154,11 @@ func QuadTree_Query(tree *QuadTree, rec rl.Rectangle) []rl.Vector2 {
 	return results
 }
 
+// QuadTree_Visualise returns a list of rectangles to
 func QuadTree_Visualise(tree *QuadTree) []rl.Rectangle {
 	rectList := make([]rl.Rectangle, 0)
 
-	_ = append(rectList, tree.boundary)
+	rectList = append(rectList, tree.boundary)
 
 	if tree.northWest == nil {
 		return rectList
@@ -164,25 +166,25 @@ func QuadTree_Visualise(tree *QuadTree) []rl.Rectangle {
 
 	if childRect := QuadTree_Visualise(tree.northWest); len(childRect) > 0 {
 		for _, point := range childRect {
-			_ = append(rectList, point)
+			rectList = append(rectList, point)
 		}
 	}
 
 	if childRect := QuadTree_Visualise(tree.northEast); len(childRect) > 0 {
 		for _, point := range childRect {
-			_ = append(rectList, point)
+			rectList = append(rectList, point)
 		}
 	}
 
 	if childRect := QuadTree_Visualise(tree.southWest); len(childRect) > 0 {
 		for _, point := range childRect {
-			_ = append(rectList, point)
+			rectList = append(rectList, point)
 		}
 	}
 
 	if childRect := QuadTree_Visualise(tree.southEast); len(childRect) > 0 {
 		for _, point := range childRect {
-			_ = append(rectList, point)
+			rectList = append(rectList, point)
 		}
 	}
 
@@ -200,49 +202,47 @@ func main() {
 	RECT_SIZE := rl.Vector2{X: 10., Y: 10.}
 
 	rl.InitWindow(WIDTH, HEIGHT, "Quadtree Test")
+	defer rl.CloseWindow()
 
 	rl.SetTargetFPS(60)
 
 	quadTree := MakeQuadTree(rl.Rectangle{X: 0, Y: 0, Width: float32(WIDTH), Height: float32(HEIGHT)})
 
-	rectPositions := [100]rl.Vector2{}
+	rectPositions := map[rl.Vector2]rl.Color{}
 
-	randColours := [100]rl.Color{}
-	for j := range randColours {
-		randColours[j] = randomColour()
-	}
+	randColours := []rl.Color{}
 
-	for idx, pos := range rectPositions {
-		pos.X = randomFloat32(0, float32(WIDTH))
-		pos.Y = randomFloat32(0, float32(HEIGHT))
-		if QuadTree_Insert(quadTree, pos) == false {
-			fmt.Println("Failed to insert position into quadtree")
-			continue
-		}
-		fmt.Printf("Insert complete: %v\n", idx)
+	for idx, _ := range randColours {
+		randColours[idx] = randomColour()
 	}
 
 	for !rl.WindowShouldClose() {
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.Black)
+		mousePos := rl.GetMousePosition()
+
+		if rl.IsMouseButtonPressed(rl.MouseButtonLeft) {
+			newRec := rl.Rectangle{X: mousePos.X, Y: mousePos.Y, Width: float32(WIDTH), Height: float32(HEIGHT)}
+			rectPositions[rl.Vector2{X: newRec.X, Y: newRec.Y}] = randomColour()
+			QuadTree_Insert(quadTree, rl.Vector2{X: newRec.X, Y: newRec.Y})
+		}
 
 		visualisation := QuadTree_Visualise(quadTree)
 
-		for index, rect := range visualisation {
-			rl.DrawRectangleV(rl.Vector2{X: rect.X, Y: rect.Y}, rl.Vector2{X: rect.Width, Y: rect.Height}, randColours[index])
+		for _, val := range visualisation {
+			rl.DrawRectangleV(rl.Vector2{X: val.X, Y: val.Y}, rl.Vector2{X: val.Width, Y: val.Height}, rectPositions[rl.Vector2{X: val.X, Y: val.Y}])
 		}
 
-		mousePos := rl.GetMousePosition()
 		rl.DrawRectangleV(mousePos, rl.Vector2{X: 20., Y: 20.}, rl.Red)
 
 		queryResults := QuadTree_Query(quadTree, rl.Rectangle{X: mousePos.X, Y: mousePos.Y, Width: RECT_SIZE.X, Height: RECT_SIZE.Y})
 
-		for _, position := range rectPositions {
-			_, err := linearSearch(queryResults[:], position)
-			if err == nil {
-				rl.DrawRectangleV(position, RECT_SIZE, rl.White)
+		for key, _ := range rectPositions {
+			_, err := linearSearch(queryResults[:], key)
+			if err != nil {
+				rl.DrawRectangleV(key, RECT_SIZE, rl.White)
 			} else {
-				rl.DrawRectangleV(position, RECT_SIZE, rl.Green)
+				rl.DrawRectangleV(key, RECT_SIZE, rl.Green)
 			}
 		}
 
@@ -251,6 +251,7 @@ func main() {
 	}
 }
 
+// linearSearch
 func linearSearch(slice []rl.Vector2, target rl.Vector2) (rl.Vector2, error) {
 	for _, value := range slice {
 		if value == target {
